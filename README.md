@@ -1,4 +1,4 @@
-# Chat Server - Enterprise Slack-like Application with LLM Integration
+# Venn - Enterprise Slack-like Application with LLM Integration
 
 A Python-based chat server with real-time messaging, threads, and LLM-powered data querying capabilities for enterprise environments.
 
