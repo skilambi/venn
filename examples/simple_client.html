@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Server - Simple Web Client</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 900px;
+            height: 600px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px 12px 0 0;
+        }
+        
+        .auth-section {
+            padding: 20px;
+            background: #f5f5f5;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .auth-form {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .auth-form input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .auth-form button {
+            padding: 8px 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .auth-form button:hover {
+            background: #5a67d8;
+        }
+        
+        .chat-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .channels-sidebar {
+            width: 200px;
+            background: #f8f9fa;
+            border-right: 1px solid #ddd;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .channel-item {
+            padding: 8px 12px;
+            margin: 4px 0;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .channel-item:hover {
+            background: #e9ecef;
+        }
+        
+        .channel-item.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .chat-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .messages-container {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #fff;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            background: #f1f3f5;
+        }
+        
+        .message.own {
+            background: #e3f2fd;
+            margin-left: 20%;
+        }
+        
+        .message.llm {
+            background: #f3e5f5;
+            border-left: 4px solid #9c27b0;
+        }
+        
+        .message-header {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .message-content {
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        
+        .input-container {
+            padding: 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #ddd;
+        }
+        
+        .input-form {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .input-form input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .input-form button {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .input-form button:hover {
+            background: #5a67d8;
+        }
+        
+        .status {
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            display: inline-block;
+        }
+        
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .typing-indicator {
+            font-style: italic;
+            color: #666;
+            font-size: 12px;
+            padding: 5px 20px;
+        }
+        
+        .llm-controls {
+            padding: 10px;
+            background: #f0f0f0;
+            border-top: 1px solid #ddd;
+        }
+        
+        .llm-query-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Chat Server Client</h1>
+            <div id="connectionStatus" class="status disconnected">Disconnected</div>
+        </div>
+        
+        <div class="auth-section">
+            <div class="auth-form">
+                <input type="email" id="email" placeholder="Email" value="test@example.com">
+                <input type="text" id="username" placeholder="Username" value="testuser">
+                <input type="password" id="password" placeholder="Password" value="TestPass123!">
+                <button onclick="register()">Register</button>
+                <button onclick="login()">Login</button>
+                <button onclick="connectWebSocket()">Connect WS</button>
+            </div>
+            <div id="authStatus" style="margin-top: 10px; font-size: 12px;"></div>
+        </div>
+        
+        <div class="chat-container">
+            <div class="channels-sidebar">
+                <h3>Channels</h3>
+                <button onclick="createChannel()" style="width: 100%; margin: 10px 0;">+ New Channel</button>
+                <div id="channelsList"></div>
+            </div>
+            
+            <div class="chat-main">
+                <div id="messagesContainer" class="messages-container">
+                    <div style="text-align: center; color: #999; padding: 20px;">
+                        Select a channel to start chatting
+                    </div>
+                </div>
+                
+                <div id="typingIndicator" class="typing-indicator" style="display: none;"></div>
+                
+                <div class="input-container">
+                    <div class="input-form">
+                        <input type="text" id="messageInput" placeholder="Type a message..." disabled>
+                        <button onclick="sendMessage()" id="sendButton" disabled>Send</button>
+                    </div>
+                </div>
+                
+                <div class="llm-controls" id="llmControls" style="display: none;">
+                    <h4>LLM Query (Thread Mode)</h4>
+                    <input type="text" class="llm-query-input" id="llmQuery" placeholder="Ask about data (e.g., 'Show top customers')">
+                    <button onclick="sendLLMQuery()">Query Data</button>
+                    <button onclick="createThread()">Create Thread</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let accessToken = null;
+        let ws = null;
+        let currentChannel = null;
+        let currentThread = null;
+        let currentUser = null;
+        const API_BASE = 'http://localhost:8000/api/v1';
+        
+        // Authentication functions
+        async function register() {
+            const email = document.getElementById('email').value;
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/register`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        email, username, password,
+                        full_name: username
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    currentUser = data;
+                    updateAuthStatus('Registered successfully! Now login.');
+                } else {
+                    const error = await response.text();
+                    updateAuthStatus(`Registration failed: ${error}`);
+                }
+            } catch (error) {
+                updateAuthStatus(`Error: ${error.message}`);
+            }
+        }
+        
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const formData = new URLSearchParams();
+                formData.append('username', email);
+                formData.append('password', password);
+                
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    accessToken = data.access_token;
+                    updateAuthStatus('Logged in successfully!');
+                    document.getElementById('messageInput').disabled = false;
+                    document.getElementById('sendButton').disabled = false;
+                    loadChannels();
+                } else {
+                    updateAuthStatus('Login failed');
+                }
+            } catch (error) {
+                updateAuthStatus(`Error: ${error.message}`);
+            }
+        }
+        
+        function updateAuthStatus(message) {
+            document.getElementById('authStatus').textContent = message;
+        }
+        
+        // WebSocket functions
+        function connectWebSocket() {
+            if (!accessToken) {
+                alert('Please login first');
+                return;
+            }
+            
+            if (ws) {
+                ws.close();
+            }
+            
+            ws = new WebSocket(`ws://localhost:8000/ws/${accessToken}`);
+            
+            ws.onopen = () => {
+                updateConnectionStatus(true);
+                console.log('WebSocket connected');
+                
+                // Join current channel if selected
+                if (currentChannel) {
+                    ws.send(JSON.stringify({
+                        type: 'join_channel',
+                        channel_id: currentChannel.id
+                    }));
+                }
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleWebSocketMessage(data);
+            };
+            
+            ws.onclose = () => {
+                updateConnectionStatus(false);
+                console.log('WebSocket disconnected');
+            };
+            
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+            
+            // Keep alive
+            setInterval(() => {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({type: 'ping'}));
+                }
+            }, 30000);
+        }
+        
+        function handleWebSocketMessage(data) {
+            switch(data.type) {
+                case 'new_message':
+                    displayMessage(data.message);
+                    break;
+                case 'llm_response':
+                    displayLLMResponse(data.message);
+                    break;
+                case 'typing_indicator':
+                    showTypingIndicator(data);
+                    break;
+                case 'user_status':
+                    console.log(`User ${data.user_id} is ${data.status}`);
+                    break;
+            }
+        }
+        
+        function updateConnectionStatus(connected) {
+            const status = document.getElementById('connectionStatus');
+            if (connected) {
+                status.className = 'status connected';
+                status.textContent = 'Connected';
+            } else {
+                status.className = 'status disconnected';
+                status.textContent = 'Disconnected';
+            }
+        }
+        
+        // Channel functions
+        async function loadChannels() {
+            if (!accessToken) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/channels/`, {
+                    headers: {'Authorization': `Bearer ${accessToken}`}
+                });
+                
+                if (response.ok) {
+                    const channels = await response.json();
+                    displayChannels(channels);
+                }
+            } catch (error) {
+                console.error('Error loading channels:', error);
+            }
+        }
+        
+        function displayChannels(channels) {
+            const container = document.getElementById('channelsList');
+            container.innerHTML = '';
+            
+            channels.forEach(channel => {
+                const div = document.createElement('div');
+                div.className = 'channel-item';
+                div.textContent = `# ${channel.name}`;
+                div.onclick = () => selectChannel(channel);
+                container.appendChild(div);
+            });
+        }
+        
+        async function createChannel() {
+            const name = prompt('Channel name:');
+            if (!name) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/channels/`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: name,
+                        description: `${name} channel`
+                    })
+                });
+                
+                if (response.ok) {
+                    loadChannels();
+                }
+            } catch (error) {
+                console.error('Error creating channel:', error);
+            }
+        }
+        
+        async function selectChannel(channel) {
+            currentChannel = channel;
+            currentThread = null;
+            
+            // Update UI
+            document.querySelectorAll('.channel-item').forEach(el => {
+                el.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Join channel via WebSocket
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'join_channel',
+                    channel_id: channel.id
+                }));
+            }
+            
+            // Load messages
+            await loadMessages(channel.id);
+            
+            // Show LLM controls
+            document.getElementById('llmControls').style.display = 'block';
+        }
+        
+        // Message functions
+        async function loadMessages(channelId) {
+            try {
+                const response = await fetch(`${API_BASE}/messages/channel/${channelId}`, {
+                    headers: {'Authorization': `Bearer ${accessToken}`}
+                });
+                
+                if (response.ok) {
+                    const messages = await response.json();
+                    const container = document.getElementById('messagesContainer');
+                    container.innerHTML = '';
+                    
+                    messages.forEach(msg => displayMessage(msg));
+                }
+            } catch (error) {
+                console.error('Error loading messages:', error);
+            }
+        }
+        
+        function displayMessage(message) {
+            const container = document.getElementById('messagesContainer');
+            const div = document.createElement('div');
+            div.className = 'message';
+            
+            if (message.message_type === 'llm_response') {
+                div.className += ' llm';
+            }
+            
+            div.innerHTML = `
+                <div class="message-header">
+                    <strong>${message.author_username || 'System'}</strong> - 
+                    ${new Date(message.created_at).toLocaleTimeString()}
+                </div>
+                <div class="message-content">${message.content}</div>
+            `;
+            
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function displayLLMResponse(message) {
+            const container = document.getElementById('messagesContainer');
+            const div = document.createElement('div');
+            div.className = 'message llm';
+            
+            div.innerHTML = `
+                <div class="message-header">
+                    <strong>🤖 AI Assistant</strong> - 
+                    ${new Date().toLocaleTimeString()}
+                </div>
+                <div class="message-content">${message.content}</div>
+            `;
+            
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const content = input.value.trim();
+            
+            if (!content || !currentChannel) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/messages/`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        channel_id: currentChannel.id,
+                        content: content,
+                        thread_id: currentThread?.id
+                    })
+                });
+                
+                if (response.ok) {
+                    input.value = '';
+                }
+            } catch (error) {
+                console.error('Error sending message:', error);
+            }
+        }
+        
+        // Thread and LLM functions
+        async function createThread() {
+            if (!currentChannel) {
+                alert('Please select a channel first');
+                return;
+            }
+            
+            const title = prompt('Thread title:');
+            if (!title) return;
+            
+            // Get the last message as root
+            const messages = document.querySelectorAll('.message');
+            if (messages.length === 0) {
+                alert('Send a message first to create a thread');
+                return;
+            }
+            
+            // For demo, we'll need to get actual message ID from API
+            alert('Thread creation requires message ID - implement full flow');
+        }
+        
+        async function sendLLMQuery() {
+            const query = document.getElementById('llmQuery').value.trim();
+            if (!query || !currentThread) {
+                alert('Please create a thread first and enter a query');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/threads/${currentThread.id}/llm-query`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        thread_id: currentThread.id,
+                        query: query
+                    })
+                });
+                
+                if (response.ok) {
+                    document.getElementById('llmQuery').value = '';
+                    // Response will come via WebSocket
+                }
+            } catch (error) {
+                console.error('Error sending LLM query:', error);
+            }
+        }
+        
+        function showTypingIndicator(data) {
+            const indicator = document.getElementById('typingIndicator');
+            if (data.is_typing) {
+                indicator.style.display = 'block';
+                indicator.textContent = `${data.user_id} is typing...`;
+            } else {
+                indicator.style.display = 'none';
+            }
+        }
+        
+        // Message input enter key handler
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
