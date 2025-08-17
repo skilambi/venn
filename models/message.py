@@ -29,7 +29,7 @@ class Message(BaseModel):
     # Relationships
     channel = relationship("Channel", back_populates="messages")
     author = relationship("User", back_populates="messages")
-    thread = relationship("Thread", back_populates="messages")
+    thread = relationship("Thread", back_populates="messages", foreign_keys=[thread_id])
     replies = relationship("Message", backref="parent", remote_side="Message.id")
 
 
@@ -50,4 +50,4 @@ class Thread(BaseModel):
     allowed_tables = Column(JSON)  # List of allowed tables/views
     
     # Relationships
-    messages = relationship("Message", back_populates="thread", cascade="all, delete-orphan")
+    messages = relationship("Message", back_populates="thread", foreign_keys="Message.thread_id", cascade="all, delete-orphan")
